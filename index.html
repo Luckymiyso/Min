@@ -7,6 +7,32 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="manifest" href="manifest.json">
   <title>碰碰星 · 你的随身情绪充电站</title>
+  .home-tip{
+  position:fixed;bottom:0;left:0;width:100%;z-index:90;
+  background:rgba(20,20,40,0.95);backdrop-filter:blur(15px);
+  padding:16px 20px calc(16px + env(safe-area-inset-bottom));
+  display:flex;align-items:center;gap:12px;
+  border-top:1px solid rgba(255,255,255,0.1);
+  transition:transform 0.3s;transform:translateY(100%);
+}
+.home-tip.show{transform:translateY(0)}
+.home-tip-icon{font-size:1.8rem;flex-shrink:0}
+.home-tip-text{flex:1;font-size:0.82rem;color:#bbb;line-height:1.5}
+.home-tip-text b{color:#ffd966}
+.home-tip-close{
+  flex-shrink:0;background:none;border:none;color:#666;
+  font-size:1.2rem;cursor:pointer;padding:4px;
+}
+.home-btn{
+  position:fixed;bottom:20px;right:20px;z-index:80;
+  width:42px;height:42px;border-radius:50%;
+  background:rgba(20,20,40,0.85);backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,0.15);
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.2rem;cursor:pointer;transition:all 0.3s;
+  margin-bottom:env(safe-area-inset-bottom);
+}
+.home-btn:active{transform:scale(0.9);background:rgba(60,60,80,0.7)}
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{
@@ -369,6 +395,12 @@
     <img id="lightboxImg" src="" alt="二维码大图">
   </div>
   <div class="toast" id="toast"></div>
+  <div class="home-tip" id="homeTip">
+  <span class="home-tip-icon">📱</span>
+  <span class="home-tip-text">点 <b>分享</b> → <b>添加到主屏幕</b>，随时打开你的星空</span>
+  <button class="home-tip-close" id="homeTipClose">✕</button>
+</div>
+<div class="home-btn" id="homeBtn" style="display:none;">🏠</div>
   <canvas id="fireworksCanvas" style="display:none;"></canvas>
 
   <script>
@@ -859,6 +891,23 @@
     const lightboxImg = document.getElementById('lightboxImg');
     qrImage.addEventListener('click', () => { lightboxImg.src = qrImage.src; lightbox.classList.add('open'); });
     lightbox.addEventListener('click', () => lightbox.classList.remove('open'));
+    const homeTip = document.getElementById('homeTip');
+const homeBtn = document.getElementById('homeBtn');
+const homeTipClose = document.getElementById('homeTipClose');
+const TIP_SHOWN_KEY = 'pengpeng_hometip_' + sessionId;
+if (!localStorage.getItem(TIP_SHOWN_KEY)) {
+  setTimeout(() => homeTip.classList.add('show'), 1500);
+} else {
+  homeBtn.style.display = 'flex';
+}
+homeTipClose.addEventListener('click', () => {
+  homeTip.classList.remove('show');
+  localStorage.setItem(TIP_SHOWN_KEY, '1');
+  homeBtn.style.display = 'flex';
+});
+homeBtn.addEventListener('click', () => {
+  homeTip.classList.add('show');
+});
     loadStars(); loadBgStars(); updateStarCounter(); restoreBgStars();
   })();
   </script>
