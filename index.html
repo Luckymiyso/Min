@@ -1,848 +1,865 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>碰碰星 · 静谧宇宙</title>
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{
-      background:#020210; overflow:hidden;
-      font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",sans-serif;
-      -webkit-tap-highlight-color:transparent;
-      padding-top:env(safe-area-inset-top);
-      padding-bottom:env(safe-area-inset-bottom);
-      padding-left:env(safe-area-inset-left);
-      padding-right:env(safe-area-inset-right);
-    }
-    #canvas-container{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0}
-    #fireworkCanvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:3;pointer-events:none}
-
-    /* ===== UI层 ===== */
-    .ui-layer{
-      position:fixed;bottom:calc(30px + env(safe-area-inset-bottom));
-      left:50%;transform:translateX(-50%);z-index:20;
-      width:90%;max-width:420px;display:flex;flex-direction:column;gap:10px;
-      pointer-events:none;
-    }
-    .input-card{
-      background:rgba(8,12,28,0.75);backdrop-filter:blur(25px);
-      border-radius:22px;padding:16px 20px;
-      border:1px solid rgba(255,255,255,0.05);
-      display:flex;flex-direction:column;gap:10px;pointer-events:auto;
-      position:relative;overflow:hidden;
-    }
-    .input-card::before{
-      content:'';position:absolute;top:0;left:15%;right:15%;height:1px;
-      background:linear-gradient(90deg,transparent,rgba(160,176,255,0.4),rgba(180,140,240,0.3),transparent);
-    }
-    textarea{
-      width:100%;background:transparent;border:none;color:#d0d8ff;
-      font-size:0.95rem;line-height:1.6;resize:none;outline:none;
-      min-height:50px;font-family:inherit;
-    }
-    textarea::placeholder{color:#556;font-style:italic}
-    .btn-row{display:flex;gap:8px}
-    .btn{
-      background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);
-      color:#8899cc;padding:10px 18px;border-radius:30px;font-size:0.9rem;
-      font-weight:500;cursor:pointer;backdrop-filter:blur(10px);
-      transition:all 0.2s;display:flex;align-items:center;justify-content:center;
-      gap:6px;flex:1;
-    }
-    .btn.primary{
-      background:rgba(120,100,220,0.25);border-color:rgba(140,120,240,0.4);
-      color:#d0d8ff;font-weight:600;
-    }
-    .btn:active{transform:scale(0.95)}
-    .btn:disabled{opacity:0.3;pointer-events:none}
-    .hint-text{font-size:0.7rem;color:#445;text-align:center;margin-top:2px}
-
-    /* ===== 右上角 ===== */
-    .top-right-area{
-      position:fixed;top:calc(16px + env(safe-area-inset-top));
-      right:calc(16px + env(safe-area-inset-right));z-index:20;
-      display:flex;flex-direction:column;gap:8px;align-items:flex-end;
-    }
-    .star-badge{
-      background:rgba(8,12,28,0.75);backdrop-filter:blur(20px);
-      border-radius:30px;padding:8px 14px;display:flex;align-items:center;gap:6px;
-      border:1px solid rgba(180,200,255,0.15);cursor:pointer;transition:all 0.2s;
-    }
-    .star-badge:active{transform:scale(0.95)}
-    .star-emoji{font-size:1.2rem}
-    .star-count{font-weight:600;color:#a0b0ff;font-size:0.95rem}
-    .clear-btn{
-      background:rgba(60,20,20,0.5);backdrop-filter:blur(10px);
-      border:1px solid rgba(255,80,80,0.15);border-radius:30px;
-      padding:6px 12px;color:#a66;font-size:0.72rem;cursor:pointer;
-      transition:all 0.2s;
-    }
-    .clear-btn:active{transform:scale(0.94);border-color:#f55}
-
-    /* ===== 左上角 ===== */
-    .top-left-area{
-      position:fixed;top:calc(16px + env(safe-area-inset-top));
-      left:calc(16px + env(safe-area-inset-left));z-index:20;
-      display:flex;gap:8px;
-    }
-    .icon-btn{
-      width:38px;height:38px;border-radius:50%;
-      background:rgba(8,12,28,0.75);backdrop-filter:blur(20px);
-      display:flex;align-items:center;justify-content:center;
-      border:1px solid rgba(255,255,255,0.08);cursor:pointer;
-      color:#7788aa;font-size:1rem;transition:all 0.2s;
-    }
-    .icon-btn:active{transform:scale(0.9)}
-    .icon-btn.on{color:#a0b0ff;border-color:rgba(160,176,255,0.25)}
-
-    /* ===== 星系弹窗 ===== */
-    .galaxy-modal{
-      position:fixed;top:0;left:0;width:100%;height:100%;
-      background:rgba(2,2,16,0.88);backdrop-filter:blur(25px);z-index:100;
-      display:none;flex-direction:column;align-items:center;justify-content:center;
-      padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);
-    }
-    .galaxy-modal.open{display:flex}
-    .galaxy-header{width:90%;max-width:400px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-    .batch-btn{
-      background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);
-      color:#8899cc;padding:8px 16px;border-radius:25px;font-size:0.85rem;
-      cursor:pointer;backdrop-filter:blur(10px);
-    }
-    .batch-btn.active{background:rgba(255,80,80,0.3);border-color:#f55}
-    .batch-actions{display:none;gap:8px}
-    .batch-actions.visible{display:flex}
-    .galaxy-content{
-      width:90%;max-width:400px;max-height:60vh;overflow-y:auto;
-      display:flex;flex-wrap:wrap;gap:14px;justify-content:center;padding:20px;
-    }
-    .galaxy-star{
-      width:52px;height:52px;display:flex;align-items:center;justify-content:center;
-      background:rgba(20,25,50,0.8);border-radius:14px;cursor:pointer;
-      border:1px solid rgba(255,255,255,0.04);transition:all 0.2s;
-    }
-    .galaxy-star.selected{box-shadow:0 0 0 3px #a0b0ff;border-color:rgba(160,176,255,0.5)}
-    .galaxy-star:active{transform:scale(0.92)}
-    .close-btn{
-      margin-top:20px;color:#667799;background:transparent;
-      border:1px solid #334;padding:8px 24px;border-radius:25px;cursor:pointer;
-    }
-    .close-btn:active{border-color:#8899cc;color:#8899cc}
-    .empty-hint{color:#556;text-align:center;padding:40px;width:100%;font-size:0.9rem;line-height:1.8}
-
-    /* ===== 星星详情 ===== */
-    .detail-modal{
-      position:fixed;top:0;left:0;width:100%;height:100%;
-      background:rgba(2,2,16,0.9);backdrop-filter:blur(15px);z-index:120;
-      display:none;flex-direction:column;align-items:center;justify-content:center;
-    }
-    .detail-modal.open{display:flex}
-    .detail-card{
-      background:rgba(12,16,35,0.95);border-radius:22px;padding:28px 24px;
-      width:85%;max-width:360px;border:1px solid rgba(160,176,255,0.1);
-      text-align:center;display:flex;flex-direction:column;align-items:center;gap:18px;
-    }
-    .detail-card .big-star{width:64px;height:64px;display:flex;align-items:center;justify-content:center}
-    .detail-card .memory-text{color:#c0c8e0;font-size:0.95rem;line-height:1.7;max-height:120px;overflow-y:auto;word-break:break-word}
-    .detail-card .memory-time{color:#445;font-size:0.7rem;letter-spacing:1px}
-    .detail-card .btn-row{display:flex;gap:12px}
-    .detail-card .btn-small{
-      background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);
-      color:#8899cc;padding:10px 20px;border-radius:30px;font-size:0.85rem;cursor:pointer;
-    }
-    .detail-card .btn-small.danger{border-color:rgba(255,80,80,0.2);color:#c88}
-    .detail-card .btn-small:active{transform:scale(0.94)}
-
-    /* ===== 反馈弹窗 ===== */
-    .feedback-modal{
-      position:fixed;top:70px;left:16px;z-index:60;
-      background:rgba(10,14,30,0.97);backdrop-filter:blur(25px);
-      border-radius:18px;padding:22px 20px 18px;
-      border:1px solid rgba(160,176,255,0.1);
-      box-shadow:0 12px 40px rgba(0,0,0,0.6);width:240px;
-      opacity:0;pointer-events:none;transform:translateY(-8px);transition:all 0.25s ease;
-    }
-    .feedback-modal.open{opacity:1;pointer-events:auto;transform:translateY(0)}
-    .feedback-modal .qr-code{width:100%;max-width:180px;height:auto;margin:0 auto 14px;display:block;background:#fff;border-radius:10px;padding:6px;cursor:pointer}
-    .feedback-modal .hint{font-size:0.78rem;color:#778;text-align:center;line-height:1.7}
-    .feedback-modal .hint .warm{color:#a0b0ff}
-    .feedback-modal .social-row{display:flex;gap:10px;justify-content:center;margin-top:12px;font-size:0.7rem;color:#556}
-    .feedback-overlay{position:fixed;top:0;left:0;width:100%;height:100%;z-index:55;pointer-events:none}
-    .feedback-overlay.active{pointer-events:auto}
-
-    /* ===== 灯箱 ===== */
-    .img-lightbox{
-      position:fixed;top:0;left:0;width:100%;height:100%;
-      background:rgba(0,0,0,0.92);backdrop-filter:blur(8px);z-index:600;
-      display:flex;align-items:center;justify-content:center;
-      opacity:0;pointer-events:none;transition:opacity 0.25s;
-    }
-    .img-lightbox.open{opacity:1;pointer-events:auto}
-    .img-lightbox img{max-width:85%;max-height:80%;border-radius:12px;box-shadow:0 0 40px rgba(0,0,0,0.8);background:#fff;padding:8px}
-
-    /* ===== 主屏幕提示 ===== */
-    .home-tip{
-      position:fixed;bottom:0;left:0;width:100%;z-index:90;
-      background:rgba(6,8,22,0.97);backdrop-filter:blur(20px);
-      padding:16px 20px calc(16px + env(safe-area-inset-bottom));
-      display:flex;align-items:center;gap:12px;
-      border-top:1px solid rgba(160,176,255,0.15);
-      transition:transform 0.3s;transform:translateY(100%);
-    }
-    .home-tip.show{transform:translateY(0)}
-    .home-tip-icon{font-size:1.5rem;flex-shrink:0}
-    .home-tip-text{flex:1;font-size:0.82rem;color:#778;line-height:1.5}
-    .home-tip-text b{color:#a0b0ff}
-    .home-tip-close{flex-shrink:0;background:none;border:none;color:#556;font-size:1.2rem;cursor:pointer;padding:4px}
-    .home-btn{
-      position:fixed;z-index:80;width:38px;height:38px;border-radius:50%;
-      background:rgba(8,12,28,0.85);backdrop-filter:blur(10px);
-      border:1px solid rgba(255,255,255,0.08);
-      display:flex;align-items:center;justify-content:center;
-      font-size:1rem;cursor:pointer;color:#7788aa;transition:all 0.3s;
-      bottom:calc(20px + env(safe-area-inset-bottom));right:calc(16px + env(safe-area-inset-right));
-    }
-    .home-btn:active{transform:scale(0.9)}
-
-    /* ===== 引导页 ===== */
-    .landing-page{
-      position:fixed;top:0;left:0;width:100%;height:100%;z-index:500;
-      display:none;flex-direction:column;align-items:center;justify-content:center;gap:24px;
-      background:#020210;padding:20px;
-      padding-top:calc(20px + env(safe-area-inset-top));
-      padding-bottom:calc(20px + env(safe-area-inset-bottom));
-    }
-    .landing-page.show{display:flex}
-    .landing-title{
-      font-size:2.2rem;font-weight:800;letter-spacing:6px;
-      background:linear-gradient(135deg,#a0b0ff,#c0a0f0,#f0b0d0);
-      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-    }
-    .landing-subtitle{color:rgba(160,176,255,0.4);font-size:0.82rem;letter-spacing:3px;text-align:center;line-height:1.8}
-    .landing-qr{width:170px;height:auto;border-radius:12px;background:#fff;padding:8px;cursor:pointer;transition:transform 0.2s}
-    .landing-qr:active{transform:scale(0.95)}
-    .landing-hint{font-size:0.75rem;color:#556;text-align:center;line-height:1.6}
-    .landing-hint .hl{color:#a0b0ff}
-    .landing-contact{
-      background:rgba(160,176,255,0.04);backdrop-filter:blur(15px);
-      border:1px solid rgba(160,176,255,0.1);border-radius:16px;
-      padding:16px 24px;text-align:center;
-    }
-    .landing-contact .label{font-size:0.7rem;color:#556;letter-spacing:2px;margin-bottom:6px}
-    .landing-contact .value{font-size:0.85rem;color:#a0b0ff}
-
-    /* ===== Toast ===== */
-    .toast{
-      position:fixed;bottom:calc(120px + env(safe-area-inset-bottom));
-      left:50%;transform:translateX(-50%);
-      background:rgba(10,15,30,0.9);color:#d0d8ff;padding:10px 22px;
-      border-radius:30px;z-index:200;opacity:0;transition:opacity 0.3s;
-      pointer-events:none;font-size:0.88rem;border:1px solid rgba(255,255,255,0.08);
-    }
-    .toast.show{opacity:1}
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>碰碰星·静谧宇宙</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:#020210;overflow:hidden;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",sans-serif;
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+}
+#canvas-container{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none}
+#fireworkCanvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:50;pointer-events:none}
+.top-bar{
+  position:fixed;top:0;left:0;right:0;
+  padding:max(env(safe-area-inset-top),16px) 16px 0 16px;
+  z-index:20;display:flex;justify-content:space-between;align-items:center;
+}
+.top-left{display:flex;gap:8px;align-items:center}
+.top-right{display:flex;gap:8px;align-items:center}
+.icon-btn{
+  width:42px;height:42px;border-radius:50%;
+  background:rgba(8,12,28,0.75);backdrop-filter:blur(20px);
+  display:flex;align-items:center;justify-content:center;
+  border:1px solid rgba(255,255,255,0.08);cursor:pointer;
+  color:#8899cc;font-size:1.1rem;transition:all .2s;
+}
+.icon-btn:active{transform:scale(0.9)}
+.star-badge{
+  background:rgba(8,12,28,0.75);backdrop-filter:blur(20px);
+  border-radius:30px;padding:8px 14px;display:flex;align-items:center;gap:6px;
+  border:1px solid rgba(180,200,255,0.15);cursor:pointer;
+}
+.star-emoji{font-size:1.2rem}
+.star-count{font-weight:600;color:#a0b0ff;font-size:.95rem}
+.ui-layer{
+  position:fixed;bottom:0;left:0;right:0;
+  padding:0 16px calc(env(safe-area-inset-bottom,16px) + 12px) 16px;
+  z-index:20;display:flex;flex-direction:column;gap:10px;
+}
+.input-card{
+  background:rgba(8,12,28,0.75);backdrop-filter:blur(25px);
+  border-radius:22px;padding:16px 20px;
+  border:1px solid rgba(255,255,255,0.05);
+  display:flex;flex-direction:column;gap:10px;
+}
+textarea{
+  width:100%;background:transparent;border:none;color:#d0d8ff;
+  font-size:.95rem;line-height:1.6;resize:none;outline:none;
+  min-height:50px;font-family:inherit;
+}
+textarea::placeholder{color:#556;font-style:italic}
+.btn-row{display:flex;gap:8px}
+.btn{
+  background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);
+  color:#8899cc;padding:10px 18px;border-radius:30px;font-size:.9rem;
+  font-weight:500;cursor:pointer;backdrop-filter:blur(10px);
+  transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px;flex:1;
+}
+.btn.primary{background:rgba(120,100,220,0.25);border-color:rgba(140,120,240,0.4);color:#d0d8ff;font-weight:600}
+.btn:active{transform:scale(0.95)}
+.hint-text{font-size:.7rem;color:#445;text-align:center;margin-top:2px}
+.galaxy-modal{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,0,0.85);backdrop-filter:blur(25px);
+  z-index:100;display:none;flex-direction:column;align-items:center;justify-content:center;
+  padding-top:max(env(safe-area-inset-top),20px);padding-bottom:max(env(safe-area-inset-bottom),20px);
+}
+.galaxy-modal.open{display:flex}
+.galaxy-header{width:90%;max-width:400px;display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.batch-btn{
+  background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);
+  color:#8899cc;padding:8px 16px;border-radius:25px;font-size:.85rem;cursor:pointer;backdrop-filter:blur(10px);
+}
+.batch-actions{display:none;gap:8px}
+.batch-actions.visible{display:flex}
+.galaxy-content{
+  width:90%;max-width:400px;max-height:60vh;overflow-y:auto;
+  display:flex;flex-wrap:wrap;gap:14px;justify-content:center;padding:20px;
+  -webkit-overflow-scrolling:touch;
+}
+.galaxy-star{
+  width:56px;height:56px;display:flex;align-items:center;justify-content:center;
+  background:rgba(20,25,50,0.8);border-radius:14px;cursor:pointer;
+  border:1px solid rgba(255,255,255,0.04);transition:all .2s;
+}
+.galaxy-star:active{transform:scale(0.9)}
+.galaxy-star.selected{box-shadow:0 0 0 3px #ffd966}
+.close-btn{margin-top:20px;color:#667799;background:transparent;border:1px solid #334;padding:8px 24px;border-radius:25px;cursor:pointer;font-size:.9rem}
+.detail-modal{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,0,0.8);backdrop-filter:blur(20px);
+  z-index:150;display:none;flex-direction:column;align-items:center;justify-content:center;
+}
+.detail-modal.open{display:flex}
+.detail-card{
+  background:rgba(8,12,28,0.92);border-radius:24px;padding:30px;
+  border:1px solid rgba(255,255,255,0.08);max-width:320px;width:85%;text-align:center;
+}
+.detail-svg{margin-bottom:16px}
+.detail-text{color:#c0c8ee;font-size:1rem;line-height:1.7;margin-bottom:12px;word-break:break-word;white-space:pre-wrap}
+.detail-time{color:#445;font-size:.75rem;margin-bottom:20px}
+.detail-close{color:#667799;background:transparent;border:1px solid #334;padding:8px 24px;border-radius:25px;cursor:pointer;font-size:.9rem}
+.toast{
+  position:fixed;bottom:140px;left:50%;transform:translateX(-50%);
+  background:rgba(10,15,30,0.9);color:#d0d8ff;padding:10px 22px;
+  border-radius:30px;z-index:200;opacity:0;transition:opacity .3s;
+  pointer-events:none;font-size:.9rem;border:1px solid rgba(255,255,255,0.08);white-space:nowrap;
+}
+.toast.show{opacity:1}
+</style>
 </head>
 <body>
-  <div id="canvas-container"></div>
-  <canvas id="fireworkCanvas" style="display:none;"></canvas>
 
-  <!-- 引导页 -->
-  <div class="landing-page" id="landingPage">
-    <div class="landing-title">碰碰星</div>
-    <div class="landing-subtitle">你的随身情绪充电站<br>写下小事 · 变成星星</div>
-    <img class="landing-qr" id="landingQr" src="Min.png" alt="联系我">
-    <div class="landing-hint">点击二维码放大识别<br>或 <span class="hl">扫码联系我</span> 获取你的专属星空</div>
-    <div class="landing-contact">
-      <div class="label">小红书</div>
-      <div class="value">低电量的Min</div>
-    </div>
+<div id="canvas-container"></div>
+<canvas id="fireworkCanvas"></canvas>
+
+<div class="top-bar">
+  <div class="top-left">
+    <button id="soundToggle" class="icon-btn">🔇</button>
   </div>
-
-  <!-- 主功能UI -->
-  <div class="ui-layer" id="uiLayer" style="display:none;">
-    <div class="input-card">
-      <textarea id="textInput" placeholder="把烦恼丢进去，吐出一颗星星…" maxlength="500"></textarea>
-      <div class="btn-row">
-        <button class="btn primary" id="throwBtn">✦ 丢进黑洞</button>
-        <button class="icon-btn" id="voiceHintBtn" title="语音输入提示" style="width:42px;height:42px;flex:none;border-radius:50%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:#7788aa;font-size:1.1rem;cursor:pointer">🎤</button>
-      </div>
-    </div>
-    <div class="hint-text">每吐槽一次，夜空里就多一颗星</div>
-  </div>
-
-  <!-- 左上角 -->
-  <div class="top-left-area" id="topLeftArea" style="display:none;">
-    <div class="icon-btn" id="feedbackTrigger" title="有小困在听">✉</div>
-    <div class="icon-btn on" id="soundToggle" title="声音开关">🔇</div>
-  </div>
-
-  <!-- 右上角 -->
-  <div class="top-right-area" id="topRightArea" style="display:none;">
-    <div class="star-badge" id="starDashboard">
+  <div class="top-right">
+    <div id="starDashboard" class="star-badge">
       <span class="star-emoji">⭐</span>
-      <span class="star-count" id="starCount">0</span>
+      <span id="starCount" class="star-count">0</span>
     </div>
-    <div class="clear-btn" id="clearSkyBtn">🎆 清空星空</div>
+    <button id="clearSkyBtn" class="icon-btn">🎆</button>
   </div>
+</div>
 
-  <!-- 反馈弹窗 -->
-  <div class="feedback-overlay" id="feedbackOverlay"></div>
-  <div class="feedback-modal" id="feedbackModal">
-    <img class="qr-code" id="qrImage" src="Min.png" alt="关注小Min">
-    <div class="hint">
-      <span class="warm">点击放大 | 长按识别二维码</span><br>
-      关注小红书，看小困日常<br>
-      想聊更多？私信我随时都在
+<div class="ui-layer">
+  <div class="input-card">
+    <textarea id="textInput" placeholder="把烦恼丢进黑洞..." rows="2"></textarea>
+    <div class="btn-row">
+      <button id="throwBtn" class="btn primary">✦ 丢进黑洞</button>
     </div>
-    <div class="social-row"><span>📕 小Min（低电量）</span></div>
+    <div class="hint-text">🎤 每吐槽一次，夜空里就多一颗星</div>
   </div>
+</div>
 
-  <!-- 星系弹窗 -->
-  <div class="galaxy-modal" id="galaxyModal">
-    <div class="galaxy-header">
-      <button class="batch-btn" id="batchDeleteBtn">⚡ 批量删除</button>
-      <div class="batch-actions" id="batchActions">
-        <button class="batch-btn active" id="confirmBatchBtn">确认删除</button>
-        <button class="batch-btn" id="cancelBatchBtn">取消</button>
-      </div>
-    </div>
-    <div class="galaxy-content" id="galaxyContent"></div>
-    <button class="close-btn" id="closeGalaxy">关闭</button>
-  </div>
-
-  <!-- 星星详情 -->
-  <div class="detail-modal" id="detailModal">
-    <div class="detail-card">
-      <div class="big-star" id="detailStarIcon"></div>
-      <div class="memory-text" id="detailText"></div>
-      <div class="memory-time" id="detailTime"></div>
-      <div class="btn-row">
-        <button class="btn-small" id="closeDetailBtn">返回</button>
-        <button class="btn-small danger" id="deleteStarBtn">删除这颗星</button>
-      </div>
+<div id="galaxyModal" class="galaxy-modal">
+  <div class="galaxy-header">
+    <button id="batchDeleteBtn" class="batch-btn">⚡ 批量删除</button>
+    <div id="batchActions" class="batch-actions">
+      <button id="confirmBatchBtn" class="batch-btn" style="color:#ff8888;border-color:rgba(255,100,100,0.3)">确认删除</button>
+      <button id="cancelBatchBtn" class="batch-btn">取消</button>
     </div>
   </div>
+  <div id="galaxyContent" class="galaxy-content"></div>
+  <button id="closeGalaxy" class="close-btn">关闭</button>
+</div>
 
-  <!-- 灯箱 -->
-  <div class="img-lightbox" id="imgLightbox">
-    <img id="lightboxImg" src="" alt="大图">
+<div id="detailModal" class="detail-modal">
+  <div class="detail-card">
+    <div id="detailSvg" class="detail-svg"></div>
+    <div id="detailText" class="detail-text"></div>
+    <div id="detailTime" class="detail-time"></div>
+    <button id="detailClose" class="detail-close">关闭</button>
   </div>
+</div>
 
-  <!-- 主屏幕提示 -->
-  <div class="home-tip" id="homeTip">
-    <span class="home-tip-icon">📱</span>
-    <span class="home-tip-text">点 <b>分享</b> → <b>添加到主屏幕</b>，随时打开你的星空</span>
-    <button class="home-tip-close" id="homeTipClose">✕</button>
-  </div>
-  <div class="home-btn" id="homeBtn" style="display:none;">🏠</div>
+<div id="toast" class="toast"></div>
 
-  <div class="toast" id="toast"></div>
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.157.0/build/three.module.js" } }
+</script>
 
-  <script type="importmap">
-  { "imports": { "three": "https://unpkg.com/three@0.157.0/build/three.module.js" } }
-  </script>
-  <script type="module">
-  import * as THREE from 'three';
+<script type="module">
+import * as THREE from 'three';
 
-  // ========== 工具函数（最先定义） ==========
-  function showToast(msg) {
-    const t = document.getElementById('toast');
-    t.textContent = msg; t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 2000);
+const params = new URLSearchParams(window.location.search);
+const sessionId = params.get('s') || 'default';
+const STORAGE_KEY = `pengpeng_stars_${sessionId}`;
+
+function migrateOldData() {
+  const flag = `pengpeng_migrated_${sessionId}`;
+  if (localStorage.getItem(flag)) return;
+  const old = localStorage.getItem('pengpeng_stars');
+  if (old && !localStorage.getItem(STORAGE_KEY)) localStorage.setItem(STORAGE_KEY, old);
+  localStorage.setItem(flag, '1');
+}
+migrateOldData();
+
+let starsData = [];
+let starIdCounter = 0;
+const spriteById = new Map();
+
+function loadStars() {
+  try { starsData = JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch(e) { starsData = []; }
+  starIdCounter = starsData.reduce((m, s) => Math.max(m, s.id || 0), 0);
+}
+function saveStars() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(starsData)); } catch(e) {} }
+function updateCounter() { document.getElementById('starCount').textContent = starsData.length; }
+
+// ===== 声音 =====
+let soundOn = false, audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+function playChime() {
+  if (!soundOn) return;
+  try {
+    const ctx = getAudioCtx(); const osc = ctx.createOscillator(); const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination); osc.type = 'sine';
+    osc.frequency.setValueAtTime([523.25,659.25,783.99,880,1046.5][Math.floor(Math.random()*5)], ctx.currentTime);
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.5);
+  } catch(e) {}
+}
+function playSweep() {
+  if (!soundOn) return;
+  try {
+    const ctx = getAudioCtx(); const osc = ctx.createOscillator(); const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination); osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.6);
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.6);
+  } catch(e) {}
+}
+document.getElementById('soundToggle').addEventListener('click', function(){
+  soundOn = !soundOn; this.textContent = soundOn ? '🔊' : '🔇';
+  if (soundOn) getAudioCtx();
+});
+
+// ===== Three.js =====
+const container = document.getElementById('canvas-container');
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, window.innerWidth/window.innerHeight, 0.1, 1000);
+camera.position.z = 7;
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+container.appendChild(renderer.domElement);
+scene.add(new THREE.AmbientLight(0x1a1a3a, 1.2));
+const keyLight = new THREE.PointLight(0x6677bb, 18, 10);
+keyLight.position.set(1, 2, 4);
+scene.add(keyLight);
+
+// ===== 可见范围 =====
+const FOV_RAD = 40 * Math.PI / 180, CAM_Z = 7;
+function getVisibleBounds(zPlane) {
+  const d = CAM_Z - zPlane;
+  const halfH = d * Math.tan(FOV_RAD / 2);
+  const halfW = halfH * (window.innerWidth / window.innerHeight);
+  const totalH = halfH * 2, totalW = halfW * 2;
+  return {
+    xLeft: -halfW + 24/window.innerWidth * totalW,
+    xRight: halfW - 24/window.innerWidth * totalW,
+    yBottom: -halfH + 220/window.innerHeight * totalH,
+    yTop: halfH - 100/window.innerHeight * totalH,
+  };
+}
+function getVisibleStarPos() {
+  const b = getVisibleBounds(0);
+  return new THREE.Vector3(
+    b.xLeft + Math.random() * (b.xRight - b.xLeft),
+    b.yBottom + Math.random() * (b.yTop - b.yBottom),
+    (Math.random() - 0.5) * 1.5
+  );
+}
+
+// ===== 背景星纹理（尖锐角 + 桃心保留） =====
+function makeBgTexture(type) {
+  const c = document.createElement('canvas'); c.width = 48; c.height = 48;
+  const ctx = c.getContext('2d'), cx = 24, cy = 24;
+  if (type === 'circle') {
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 9);
+    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.3, 'rgba(255,255,255,0.6)');
+    g.addColorStop(0.7, 'rgba(255,255,255,0.12)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, 9, 0, Math.PI*2); ctx.fill();
+  } else if (type === 'heart') {
+    // 桃心保持不变
+    ctx.save(); ctx.translate(cx, cy+1); ctx.scale(0.35, 0.35);
+    const g1 = ctx.createRadialGradient(0, 0, 2, 0, 0, 28);
+    g1.addColorStop(0, 'rgba(255,255,255,1)'); g1.addColorStop(0.35, 'rgba(255,255,255,0.55)');
+    g1.addColorStop(0.7, 'rgba(255,255,255,0.12)'); g1.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g1;
+    ctx.beginPath(); ctx.moveTo(0,-4);
+    ctx.bezierCurveTo(-8,-24,-34,-16,-34,6);
+    ctx.bezierCurveTo(-34,20,-16,30,0,36);
+    ctx.bezierCurveTo(16,30,34,20,34,6);
+    ctx.bezierCurveTo(34,-16,8,-24,0,-4);
+    ctx.fill();
+    const g2 = ctx.createRadialGradient(-3,-6,0,0,0,16);
+    g2.addColorStop(0, 'rgba(255,255,255,0.9)'); g2.addColorStop(0.5, 'rgba(255,255,255,0.25)');
+    g2.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g2; ctx.fill();
+    ctx.restore();
+  } else if (type === 'star4') {
+    // ★ 恢复尖锐四角星
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 13);
+    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.4, 'rgba(255,255,255,0.45)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g; ctx.beginPath();
+    for (let i = 0; i < 4; i++) {
+      const aO = (i*90-90)*Math.PI/180, aI = ((i*90)+45-90)*Math.PI/180;
+      ctx.lineTo(cx+Math.cos(aO)*12, cy+Math.sin(aO)*12);
+      ctx.lineTo(cx+Math.cos(aI)*3.5, cy+Math.sin(aI)*3.5);
+    }
+    ctx.closePath(); ctx.fill();
+  } else if (type === 'star5') {
+    // ★ 恢复尖锐五角星
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 12);
+    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.4, 'rgba(255,255,255,0.45)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g; ctx.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const aO = (i*72-90)*Math.PI/180, aI = ((i*72)+36-90)*Math.PI/180;
+      ctx.lineTo(cx+Math.cos(aO)*11, cy+Math.sin(aO)*11);
+      ctx.lineTo(cx+Math.cos(aI)*4.5, cy+Math.sin(aI)*4.5);
+    }
+    ctx.closePath(); ctx.fill();
+  } else if (type === 'diamond') {
+    // ★ 恢复尖锐菱形
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 11);
+    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.4, 'rgba(255,255,255,0.45)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.moveTo(cx, cy-11); ctx.lineTo(cx+5.5, cy); ctx.lineTo(cx, cy+11); ctx.lineTo(cx-5.5, cy);
+    ctx.closePath(); ctx.fill();
   }
-  function vibrate(p) { if (navigator.vibrate) navigator.vibrate(p); }
-  function isStandalone() {
-    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  return new THREE.CanvasTexture(c);
+}
+
+// ===== 背景星颜色（16色系，高饱和版） =====
+const bgStarColors = [
+  () => [1.0, 0.85 + Math.random() * 0.15, 0.3 + Math.random() * 0.3],
+  () => [1.0, 0.45 + Math.random() * 0.25, 0.55 + Math.random() * 0.25],
+  () => [0.4 + Math.random() * 0.3, 0.75 + Math.random() * 0.2, 1.0],
+  () => [0.7 + Math.random() * 0.25, 0.5 + Math.random() * 0.25, 1.0],
+  () => [0.3 + Math.random() * 0.3, 0.85 + Math.random() * 0.15, 0.7 + Math.random() * 0.25],
+  () => [1.0, 0.6 + Math.random() * 0.25, 0.4 + Math.random() * 0.3],
+  () => [0.3 + Math.random() * 0.2, 0.6 + Math.random() * 0.2, 1.0],
+  () => [1.0, 0.9 + Math.random() * 0.1, 0.5 + Math.random() * 0.3],
+  () => [0.4 + Math.random() * 0.25, 1.0, 0.7 + Math.random() * 0.25],
+  () => [0.85 + Math.random() * 0.15, 0.88 + Math.random() * 0.12, 1.0],
+  () => [0.75+Math.random()*0.25, 0.82+Math.random()*0.18, 0.95+Math.random()*0.05],
+  () => [0.55+Math.random()*0.25, 0.7+Math.random()*0.2, 0.95+Math.random()*0.05],
+  () => [0.35+Math.random()*0.25, 0.8+Math.random()*0.15, 0.85+Math.random()*0.15],
+  () => [0.7+Math.random()*0.2, 0.5+Math.random()*0.15, 0.95+Math.random()*0.05],
+  () => [0.4+Math.random()*0.2, 0.65+Math.random()*0.2, 0.9+Math.random()*0.1],
+  () => [0.95+Math.random()*0.05, 0.85+Math.random()*0.1, 0.4+Math.random()*0.3],
+];
+function pickBgColor() {
+  return bgStarColors[Math.floor(Math.random() * bgStarColors.length)]();
+}
+
+const bgShapes = [
+  { type:'circle', count:500, size:0.035 },
+  { type:'heart',  count:250, size:0.055 },
+  { type:'star4',  count:400, size:0.05 },
+  { type:'star5',  count:350, size:0.045 },
+  { type:'diamond',count:300, size:0.045 },
+];
+const bgGroups = [];
+bgShapes.forEach(shape => {
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(shape.count*3), col = new Float32Array(shape.count*3);
+  for (let i = 0; i < shape.count*3; i+=3) {
+    pos[i]=(Math.random()-0.5)*40; pos[i+1]=(Math.random()-0.5)*25; pos[i+2]=(Math.random()-0.5)*15-3;
+    const [r,g,b] = pickBgColor(); col[i]=r; col[i+1]=g; col[i+2]=b;
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const mat = new THREE.PointsMaterial({
+    size:shape.size, map:makeBgTexture(shape.type), vertexColors:true,
+    blending:THREE.AdditiveBlending, depthWrite:false, transparent:true
+  });
+  const p = new THREE.Points(geo, mat); scene.add(p); bgGroups.push(p);
+});
+
+// ===== 黑洞核心 =====
+const coreGroup = new THREE.Group();
+[{r:0.38,t:0.015,color:0xffeedd,op:0.25,rx:Math.PI/2,ry:0},
+ {r:0.55,t:0.004,color:0x8899dd,op:0.35,rx:Math.PI/2,ry:0},
+ {r:0.72,t:0.007,color:0x99aaff,op:0.45,rx:Math.PI/3,ry:Math.PI/5},
+ {r:0.95,t:0.005,color:0xaabbff,op:0.3,rx:Math.PI/2.5,ry:-Math.PI/4}
+].forEach(cfg => {
+  const ringGeo = new THREE.TorusGeometry(cfg.r, cfg.t, 32, 200);
+  const ringMat = new THREE.MeshStandardMaterial({
+    color:cfg.color, emissive:cfg.color, emissiveIntensity:0.4,
+    roughness:0.25, metalness:0.95, transparent:true, opacity:cfg.op
+  });
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.rotation.x = cfg.rx; ring.rotation.y = cfg.ry; coreGroup.add(ring);
+});
+coreGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.32,32,32), new THREE.MeshBasicMaterial({color:0x010118})));
+coreGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.07,16,16), new THREE.MeshBasicMaterial({color:0xffffff,blending:THREE.AdditiveBlending})));
+scene.add(coreGroup);
+
+// ===== 外圈光环 =====
+const outerHaloGroup = new THREE.Group();
+const outerRings = [];
+[{r:1.5,t:0.008,color:0xeeddcc,op:0.25,rx:Math.PI/2.1,ry:0.15,speed:0.0004}].forEach(cfg => {
+  const ringGeo = new THREE.TorusGeometry(cfg.r, cfg.t, 64, 300);
+  const ringMat = new THREE.MeshBasicMaterial({color:cfg.color,transparent:true,opacity:cfg.op,blending:THREE.AdditiveBlending,depthWrite:false});
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.rotation.x = cfg.rx; ring.rotation.y = cfg.ry;
+  ring.userData = {speed:cfg.speed, baseOpacity:cfg.op};
+  outerHaloGroup.add(ring); outerRings.push(ring);
+});
+const accentDotsGeo = new THREE.BufferGeometry();
+const accentPos = new Float32Array(90);
+for (let i = 0; i < 90; i+=3) {
+  const angle = Math.random()*Math.PI*2, radius = 1.5+(Math.random()-0.5)*0.08;
+  accentPos[i]=Math.cos(angle)*radius; accentPos[i+1]=(Math.random()-0.5)*0.06; accentPos[i+2]=Math.sin(angle)*radius;
+}
+accentDotsGeo.setAttribute('position', new THREE.BufferAttribute(accentPos, 3));
+outerHaloGroup.add(new THREE.Points(accentDotsGeo, new THREE.PointsMaterial({size:0.025,color:0xffffff,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,opacity:0.7})));
+scene.add(outerHaloGroup);
+
+// ===== 诞生闪光 =====
+const flashGeo = new THREE.SphereGeometry(0.01, 16, 16);
+const flashMat = new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0,blending:THREE.AdditiveBlending});
+const flashMesh = new THREE.Mesh(flashGeo, flashMat);
+scene.add(flashMesh);
+let flashActive = false, flashTimer = 0;
+function triggerFlash() { flashMesh.scale.set(0.1,0.1,0.1); flashMat.opacity=1; flashActive=true; flashTimer=0; }
+
+// ===== 用户星星调色板 =====
+const starPalettes = [
+  {hue:210,sat:85,light:78},{hue:230,sat:80,light:76},{hue:260,sat:75,light:75},
+  {hue:285,sat:70,light:78},{hue:305,sat:65,light:80},{hue:170,sat:75,light:75},
+  {hue:190,sat:80,light:78},{hue:340,sat:75,light:80},{hue:45,sat:90,light:82},
+  {hue:25,sat:85,light:78},{hue:150,sat:70,light:74},{hue:320,sat:65,light:80},
+];
+function pickColor() {
+  const p = starPalettes[Math.floor(Math.random()*starPalettes.length)];
+  return {
+    hue: p.hue+Math.floor(Math.random()*20-10),
+    sat: Math.min(100,Math.max(40,p.sat+Math.floor(Math.random()*12-6))),
+    light: Math.min(90,Math.max(60,p.light+Math.floor(Math.random()*12-6))),
+  };
+}
+
+// ===== 生成星星纹理（尖锐角 + 桃心保留） =====
+function makeStarTexture(hue, sat, light, shapeType) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128; canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  const cx = 64, cy = 64, size = 36;
+
+  const starColor = `hsla(${hue},${sat}%,${Math.min(100,light+25)}%,0.95)`;
+  const innerGlow = `hsla(${hue},${sat}%,${Math.min(100,light+35)}%,0.8)`;
+
+  function drawStarPoly(n, outerR, innerR, outerOff, innerOff) {
+    [innerOff, outerOff].forEach((off, idx) => {
+      const color = idx === 0 ? innerGlow : starColor;
+      const oR = outerR + (idx === 0 ? outerOff : 0);
+      const iR = innerR + (idx === 0 ? innerOff : 0);
+      ctx.fillStyle = color; ctx.beginPath();
+      for (let i = 0; i < n; i++) {
+        const aO = (i*(360/n)-90)*Math.PI/180;
+        const aI = ((i*(360/n))+(180/n)-90)*Math.PI/180;
+        ctx.lineTo(cx+Math.cos(aO)*oR, cy+Math.sin(aO)*oR);
+        ctx.lineTo(cx+Math.cos(aI)*iR, cy+Math.sin(aI)*iR);
+      }
+      ctx.closePath(); ctx.fill();
+    });
   }
 
-  // ========== 灯箱 ==========
-  const lightbox = document.getElementById('imgLightbox');
-  const lightboxImg = document.getElementById('lightboxImg');
-  lightbox.addEventListener('click', () => lightbox.classList.remove('open'));
-  function openLightbox(src) { lightboxImg.src = src; lightbox.classList.add('open'); }
+  // 桃心绘制函数
+  function drawHeart(s, offsetY) {
+    ctx.save(); ctx.translate(cx, cy + offsetY); ctx.scale(s/28, s/28);
+    ctx.fillStyle = innerGlow; ctx.beginPath(); ctx.moveTo(0,-4);
+    ctx.bezierCurveTo(-8,-24,-34,-16,-34,6);
+    ctx.bezierCurveTo(-34,20,-16,30,0,36);
+    ctx.bezierCurveTo(16,30,34,20,34,6);
+    ctx.bezierCurveTo(34,-16,8,-24,0,-4);
+    ctx.fill();
+    ctx.fillStyle = starColor; ctx.beginPath(); ctx.moveTo(0,-4);
+    ctx.bezierCurveTo(-6,-20,-26,-14,-26,5);
+    ctx.bezierCurveTo(-26,17,-12,25,0,30);
+    ctx.bezierCurveTo(12,25,26,17,26,5);
+    ctx.bezierCurveTo(26,-14,6,-20,0,-4);
+    ctx.fill();
+    ctx.restore();
+  }
 
-  document.getElementById('landingQr').addEventListener('click', () => openLightbox('Min.png'));
-  document.getElementById('qrImage').addEventListener('click', () => openLightbox('Min.png'));
-
-  // ========== 路由 ==========
-  const urlParams = new URLSearchParams(window.location.search);
-  const sessionId = urlParams.get('s');
-  const landingPage = document.getElementById('landingPage');
-  const uiLayer = document.getElementById('uiLayer');
-  const topLeftArea = document.getElementById('topLeftArea');
-  const topRightArea = document.getElementById('topRightArea');
-  const fwCanvas = document.getElementById('fireworkCanvas');
-
-  if (!sessionId) {
-    landingPage.classList.add('show');
-    // 不初始化功能
+  if (shapeType === 0) drawStarPoly(4, size*0.55, size*0.1, 4, 2);
+  else if (shapeType === 1) drawStarPoly(5, size*0.5, size*0.16, 3, 2);
+  else if (shapeType === 2) drawStarPoly(6, size*0.48, size*0.14, 3, 2);
+  else if (shapeType === 3) {
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, size*0.5);
+    g.addColorStop(0, '#ffffff');
+    g.addColorStop(0.2, `hsla(${hue},${sat}%,${Math.min(100,light+35)}%,0.9)`);
+    g.addColorStop(0.5, `hsla(${hue},${sat}%,${light+15}%,0.6)`);
+    g.addColorStop(0.8, `hsla(${hue},${sat}%,${light}%,0.2)`);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, size*0.5, 0, Math.PI*2); ctx.fill();
+  } else if (shapeType === 4) {
+    drawHeart(size*0.75, 0);
   } else {
-    uiLayer.style.display = 'flex';
-    topLeftArea.style.display = 'flex';
-    topRightArea.style.display = 'flex';
-    fwCanvas.style.display = 'block';
-    initApp();
+    // ★ 菱形恢复尖锐
+    ctx.fillStyle = innerGlow; ctx.beginPath();
+    ctx.moveTo(cx, cy-size*0.65); ctx.lineTo(cx+size*0.3, cy);
+    ctx.lineTo(cx, cy+size*0.65); ctx.lineTo(cx-size*0.3, cy);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = starColor; ctx.beginPath();
+    ctx.moveTo(cx, cy-size*0.5); ctx.lineTo(cx+size*0.22, cy);
+    ctx.lineTo(cx, cy+size*0.5); ctx.lineTo(cx-size*0.22, cy);
+    ctx.closePath(); ctx.fill();
   }
 
-  function initApp() {
-    // ========== 数据 ==========
-    const STORAGE_KEY = 'pengpeng_stars_' + sessionId;
-    const BG_KEY = 'pengpeng_bg3d_' + sessionId;
+  const coreGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, size*0.15);
+  coreGrad.addColorStop(0, '#ffffff');
+  coreGrad.addColorStop(0.3, `hsla(${hue},${sat}%,${Math.min(100,light+40)}%,0.9)`);
+  coreGrad.addColorStop(0.7, `hsla(${hue},${sat}%,${light+20}%,0.3)`);
+  coreGrad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = coreGrad;
+  ctx.beginPath(); ctx.arc(cx, cy, size*0.15, 0, Math.PI*2); ctx.fill();
 
-    // 迁移
-    if (!localStorage.getItem('pengpeng_migrated_' + sessionId)) {
-      try {
-        const os = localStorage.getItem('pengpeng_stars');
-        if (os && !localStorage.getItem(STORAGE_KEY)) localStorage.setItem(STORAGE_KEY, os);
-        localStorage.setItem('pengpeng_migrated_' + sessionId, '1');
-      } catch(e) {}
+  return new THREE.CanvasTexture(canvas);
+}
+
+// ===== SVG =====
+function makeStarSVG(hue, sat, light, shapeType) {
+  const cx = 24, cy = 24, size = 20;
+  const fill = `hsl(${hue},${sat}%,${light}%)`;
+
+  function starPointsStr(n, outerR, innerR) {
+    const pts = [];
+    for (let i = 0; i < n; i++) {
+      const aO = (i*(360/n)-90)*Math.PI/180, aI = ((i*(360/n))+(180/n)-90)*Math.PI/180;
+      pts.push(`${cx+Math.cos(aO)*outerR},${cy+Math.sin(aO)*outerR}`);
+      pts.push(`${cx+Math.cos(aI)*innerR},${cy+Math.sin(aI)*innerR}`);
     }
-
-    let starsData = [];
-    function loadStars() { try { starsData = JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; if (!Array.isArray(starsData)) starsData = []; } catch(e) { starsData = []; } }
-    function saveStars() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(starsData)); } catch(e) { starsData.shift(); try { localStorage.setItem(STORAGE_KEY, JSON.stringify(starsData)); } catch(e2) {} } }
-    function updateCounter() { document.getElementById('starCount').textContent = starsData.length; }
-
-    // ========== 主屏幕提示 ==========
-    const homeTip = document.getElementById('homeTip');
-    const homeBtn = document.getElementById('homeBtn');
-    const TIP_KEY = 'pengpeng_hometip_' + sessionId;
-    if (!isStandalone()) {
-      if (!localStorage.getItem(TIP_KEY)) setTimeout(() => homeTip.classList.add('show'), 1500);
-      else homeBtn.style.display = 'flex';
-    }
-    document.getElementById('homeTipClose').addEventListener('click', () => {
-      homeTip.classList.remove('show'); localStorage.setItem(TIP_KEY, '1'); homeBtn.style.display = 'flex';
-    });
-    homeBtn.addEventListener('click', () => homeTip.classList.add('show'));
-
-    // ========== 声音开关 ==========
-    let soundOn = false;
-    document.getElementById('soundToggle').addEventListener('click', function() {
-      soundOn = !soundOn;
-      this.textContent = soundOn ? '🔊' : '🔇';
-      this.classList.toggle('on', soundOn);
-    });
-
-    // ========== 语音提示 ==========
-    document.getElementById('voiceHintBtn').addEventListener('click', () => {
-      showToast('点击输入框 → 按键盘上的🎤即可语音输入');
-    });
-
-    // ========== 反馈弹窗 ==========
-    const feedbackModal = document.getElementById('feedbackModal');
-    const feedbackOverlay = document.getElementById('feedbackOverlay');
-    document.getElementById('feedbackTrigger').addEventListener('click', () => {
-      const isOpen = feedbackModal.classList.contains('open');
-      if (isOpen) { feedbackModal.classList.remove('open'); feedbackOverlay.classList.remove('active'); }
-      else { feedbackModal.classList.add('open'); feedbackOverlay.classList.add('active'); }
-    });
-    feedbackOverlay.addEventListener('click', () => {
-      feedbackModal.classList.remove('open'); feedbackOverlay.classList.remove('active');
-    });
-
-    // ========== Three.js 场景 ==========
-    const container = document.getElementById('canvas-container');
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.z = 7;
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    container.appendChild(renderer.domElement);
-
-    scene.add(new THREE.AmbientLight(0x1a1a3a, 1.2));
-    const keyLight = new THREE.PointLight(0x6677bb, 18, 10);
-    keyLight.position.set(1, 2, 4);
-    scene.add(keyLight);
-
-    // 深空背景
-    const starsGeo = new THREE.BufferGeometry();
-    const starsCount = 1800;
-    const starsPos = new Float32Array(starsCount * 3);
-    const starsCol = new Float32Array(starsCount * 3);
-    for (let i = 0; i < starsCount * 3; i += 3) {
-      starsPos[i] = (Math.random() - 0.5) * 40;
-      starsPos[i + 1] = (Math.random() - 0.5) * 25;
-      starsPos[i + 2] = (Math.random() - 0.5) * 15 - 3;
-      const c = Math.random();
-      if (c < 0.75) { starsCol[i] = 0.85; starsCol[i + 1] = 0.88; starsCol[i + 2] = 1.0; }
-      else if (c < 0.9) { starsCol[i] = 0.65; starsCol[i + 1] = 0.7; starsCol[i + 2] = 0.95; }
-      else { starsCol[i] = 0.9; starsCol[i + 1] = 0.8; starsCol[i + 2] = 0.95; }
-    }
-    starsGeo.setAttribute('position', new THREE.BufferAttribute(starsPos, 3));
-    starsGeo.setAttribute('color', new THREE.BufferAttribute(starsCol, 3));
-    const starsMat = new THREE.PointsMaterial({ size: 0.04, vertexColors: true, blending: THREE.AdditiveBlending, depthWrite: false });
-    const starsField = new THREE.Points(starsGeo, starsMat);
-    scene.add(starsField);
-
-    // 核心环组
-    const coreGroup = new THREE.Group();
-    const innerRingConfigs = [
-      { r: 0.38, t: 0.015, color: 0xffeedd, op: 0.25, rx: Math.PI / 2, ry: 0 },
-      { r: 0.55, t: 0.004, color: 0x8899dd, op: 0.35, rx: Math.PI / 2, ry: 0 },
-      { r: 0.72, t: 0.007, color: 0x99aaff, op: 0.45, rx: Math.PI / 3, ry: Math.PI / 5 },
-      { r: 0.95, t: 0.005, color: 0xaabbff, op: 0.3, rx: Math.PI / 2.5, ry: -Math.PI / 4 },
-    ];
-    innerRingConfigs.forEach(cfg => {
-      const geo = new THREE.TorusGeometry(cfg.r, cfg.t, 32, 200);
-      const mat = new THREE.MeshStandardMaterial({ color: cfg.color, emissive: cfg.color, emissiveIntensity: 0.4, roughness: 0.25, metalness: 0.95, transparent: true, opacity: cfg.op });
-      const ring = new THREE.Mesh(geo, mat);
-      ring.rotation.x = cfg.rx; ring.rotation.y = cfg.ry;
-      coreGroup.add(ring);
-    });
-    const voidGeo = new THREE.SphereGeometry(0.32, 32, 32);
-    const voidMat = new THREE.MeshBasicMaterial({ color: 0x010118 });
-    coreGroup.add(new THREE.Mesh(voidGeo, voidMat));
-    const dotGeo = new THREE.SphereGeometry(0.07, 16, 16);
-    const dotMat = new THREE.MeshBasicMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending });
-    coreGroup.add(new THREE.Mesh(dotGeo, dotMat));
-    scene.add(coreGroup);
-
-    // 外圈光环
-    const outerHaloGroup = new THREE.Group();
-    const outerRingConfigs = [{ r: 1.5, t: 0.008, color: 0xeeddcc, op: 0.25, rx: Math.PI / 2.1, ry: 0.15, speed: 0.0004 }];
-    const outerRings = [];
-    outerRingConfigs.forEach(cfg => {
-      const geo = new THREE.TorusGeometry(cfg.r, cfg.t, 64, 300);
-      const mat = new THREE.MeshBasicMaterial({ color: cfg.color, transparent: true, opacity: cfg.op, blending: THREE.AdditiveBlending, depthWrite: false });
-      const ring = new THREE.Mesh(geo, mat);
-      ring.rotation.x = cfg.rx; ring.rotation.y = cfg.ry;
-      ring.userData = { speed: cfg.speed, baseOpacity: cfg.op };
-      outerHaloGroup.add(ring); outerRings.push(ring);
-    });
-    const accentDotsGeo = new THREE.BufferGeometry();
-    const accentCount = 30;
-    const accentPos = new Float32Array(accentCount * 3);
-    for (let i = 0; i < accentCount * 3; i += 3) {
-      const baseR = 1.5, angle = Math.random() * Math.PI * 2;
-      const radius = baseR + (Math.random() - 0.5) * 0.08;
-      accentPos[i] = Math.cos(angle) * radius;
-      accentPos[i + 1] = (Math.random() - 0.5) * 0.06;
-      accentPos[i + 2] = Math.sin(angle) * radius;
-    }
-    accentDotsGeo.setAttribute('position', new THREE.BufferAttribute(accentPos, 3));
-    const accentDotsMat = new THREE.PointsMaterial({ size: 0.025, color: 0xffffff, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0.7 });
-    outerHaloGroup.add(new THREE.Points(accentDotsGeo, accentDotsMat));
-    scene.add(outerHaloGroup);
-
-    // ========== 星星纹理 ==========
-    function makeStarTexture(hue, sat, light, shapeType) {
-      const canvas = document.createElement('canvas');
-      canvas.width = 128; canvas.height = 128;
-      const ctx = canvas.getContext('2d');
-      const cx = 64, cy = 64, size = 36;
-      const starColor = `hsla(${hue},${sat}%,${light + 25}%,0.92)`;
-      const innerGlow = `hsla(${hue},${sat}%,${light + 35}%,0.7)`;
-      const spikes = shapeType === 0 ? 4 : shapeType === 1 ? 5 : 6;
-      const outerR = size * (shapeType === 0 ? 0.55 : shapeType === 1 ? 0.5 : 0.48);
-      const innerR = size * (shapeType === 0 ? 0.1 : shapeType === 1 ? 0.16 : 0.14);
-      const step = 360 / spikes;
-      // 外发光
-      ctx.fillStyle = innerGlow; ctx.beginPath();
-      for (let i = 0; i < spikes; i++) {
-        const aO = (i * step - 90) * Math.PI / 180;
-        const aI = ((i * step) + step / 2 - 90) * Math.PI / 180;
-        const xO = cx + Math.cos(aO) * (outerR + 4), yO = cy + Math.sin(aO) * (outerR + 4);
-        const xI = cx + Math.cos(aI) * (innerR + 2), yI = cy + Math.sin(aI) * (innerR + 2);
-        if (i === 0) ctx.moveTo(xO, yO); else ctx.lineTo(xO, yO);
-        ctx.lineTo(xI, yI);
-      }
-      ctx.closePath(); ctx.fill();
-      // 主体
-      ctx.fillStyle = starColor; ctx.beginPath();
-      for (let i = 0; i < spikes; i++) {
-        const aO = (i * step - 90) * Math.PI / 180;
-        const aI = ((i * step) + step / 2 - 90) * Math.PI / 180;
-        if (i === 0) ctx.moveTo(cx + Math.cos(aO) * outerR, cy + Math.sin(aO) * outerR);
-        else ctx.lineTo(cx + Math.cos(aO) * outerR, cy + Math.sin(aO) * outerR);
-        ctx.lineTo(cx + Math.cos(aI) * innerR, cy + Math.sin(aI) * innerR);
-      }
-      ctx.closePath(); ctx.fill();
-      // 中心白点
-      const coreGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, size * 0.12);
-      coreGrad.addColorStop(0, '#ffffff');
-      coreGrad.addColorStop(0.3, `hsla(${hue},${sat}%,${light + 40}%,0.8)`);
-      coreGrad.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = coreGrad; ctx.beginPath(); ctx.arc(cx, cy, size * 0.12, 0, Math.PI * 2); ctx.fill();
-      return new THREE.CanvasTexture(canvas);
-    }
-
-    // ========== 3D星星管理 ==========
-    const generatedStarsGroup = new THREE.Group();
-    scene.add(generatedStarsGroup);
-    let starSpeedBoost = 0;
-
-    function addGeneratedStar(text) {
-      const hue = Math.floor(Math.random() * 360);
-      const sat = 60 + Math.floor(Math.random() * 30);
-      const light = 58 + Math.floor(Math.random() * 18);
-      const shape = Math.floor(Math.random() * 3);
-      const tex = makeStarTexture(hue, sat, light, shape);
-      const material = new THREE.SpriteMaterial({ map: tex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true });
-      const sprite = new THREE.Sprite(material);
-      const angle = Math.random() * Math.PI * 2;
-      const radius = 1.5 + Math.random() * 2.5;
-      sprite.position.set(Math.cos(angle) * radius, 1.0 + Math.random() * 2.0, Math.sin(angle) * radius);
-      const sz = 0.3 + Math.random() * 0.3;
-      sprite.scale.set(sz, sz, 1);
-      sprite.userData = {
-        baseY: sprite.position.y, baseScale: sz,
-        breathePhase: Math.random() * Math.PI * 2,
-        breatheSpeed: 0.4 + Math.random() * 0.6,
-        floatAmp: 0.04 + Math.random() * 0.08,
-        floatPhase: Math.random() * Math.PI * 2,
-        floatSpeed: 0.3 + Math.random() * 0.4
-      };
-      generatedStarsGroup.add(sprite);
-
-      const svgStr = `<svg width="48" height="48" viewBox="0 0 48 48"><defs><filter id="g"><feGaussianBlur stdDeviation="1.5"/><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><polygon points="24,4 27,20 44,24 27,28 24,44 21,28 4,24 21,20" fill="hsl(${hue},${sat}%,${light}%)" filter="url(#g)"/></svg>`;
-      starsData.push({ svg: svgStr, text: text.slice(0, 200), time: Date.now(), hue, sat, light, shape });
-      saveStars(); updateCounter();
-    }
-
-    // 恢复已有星星到3D场景
-    function restore3DStars() {
-      starsData.forEach(star => {
-        if (star.hue !== undefined) {
-          const tex = makeStarTexture(star.hue, star.sat, star.light, star.shape);
-          const material = new THREE.SpriteMaterial({ map: tex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true });
-          const sprite = new THREE.Sprite(material);
-          const angle = Math.random() * Math.PI * 2;
-          const radius = 1.5 + Math.random() * 2.5;
-          sprite.position.set(Math.cos(angle) * radius, 1.0 + Math.random() * 2.0, Math.sin(angle) * radius);
-          const sz = 0.3 + Math.random() * 0.3;
-          sprite.scale.set(sz, sz, 1);
-          sprite.userData = {
-            baseY: sprite.position.y, baseScale: sz,
-            breathePhase: Math.random() * Math.PI * 2,
-            breatheSpeed: 0.4 + Math.random() * 0.6,
-            floatAmp: 0.04 + Math.random() * 0.08,
-            floatPhase: Math.random() * Math.PI * 2,
-            floatSpeed: 0.3 + Math.random() * 0.4
-          };
-          generatedStarsGroup.add(sprite);
-        }
-      });
-    }
-
-    // ========== 丢进黑洞 ==========
-    document.getElementById('throwBtn').addEventListener('click', () => {
-      const text = document.getElementById('textInput').value.trim();
-      if (!text) { showToast('写点什么再丢进去吧'); vibrate(30); return; }
-      document.getElementById('textInput').value = '';
-      starSpeedBoost = 8; // 加速3D星场旋转
-      vibrate([30, 50, 30]);
-      setTimeout(() => { addGeneratedStar(text); showToast('✨ 星星已生成'); }, 600);
-    });
-
-    // ========== 星系弹窗 ==========
-    let batchMode = false, selectedIndices = new Set(), currentViewingIndex = -1;
-
-    function renderGalaxy() {
-      const content = document.getElementById('galaxyContent');
-      content.innerHTML = '';
-      if (starsData.length === 0) { content.innerHTML = '<div class="empty-hint">还没有星星<br>去丢一些烦恼吧</div>'; return; }
-      starsData.forEach((star, idx) => {
-        const div = document.createElement('div');
-        div.className = 'galaxy-star' + (batchMode && selectedIndices.has(idx) ? ' selected' : '');
-        div.innerHTML = star.svg;
-        div.addEventListener('click', () => {
-          if (batchMode) {
-            if (selectedIndices.has(idx)) { selectedIndices.delete(idx); div.classList.remove('selected'); }
-            else { selectedIndices.add(idx); div.classList.add('selected'); }
-          } else { openStarDetail(idx); }
-        });
-        content.appendChild(div);
-      });
-    }
-
-    function showGalaxy() { if (batchMode) exitBatch(); renderGalaxy(); document.getElementById('galaxyModal').classList.add('open'); }
-    function hideGalaxy() { document.getElementById('galaxyModal').classList.remove('open'); if (batchMode) exitBatch(); }
-    function enterBatch() { batchMode = true; selectedIndices.clear(); document.getElementById('batchDeleteBtn').style.display = 'none'; document.getElementById('batchActions').classList.add('visible'); renderGalaxy(); }
-    function exitBatch() { batchMode = false; selectedIndices.clear(); document.getElementById('batchDeleteBtn').style.display = 'inline-block'; document.getElementById('batchActions').classList.remove('visible'); renderGalaxy(); }
-
-    document.getElementById('starDashboard').addEventListener('click', showGalaxy);
-    document.getElementById('closeGalaxy').addEventListener('click', hideGalaxy);
-    document.getElementById('galaxyModal').addEventListener('click', e => { if (e.target === document.getElementById('galaxyModal')) hideGalaxy(); });
-    document.getElementById('batchDeleteBtn').addEventListener('click', enterBatch);
-    document.getElementById('cancelBatchBtn').addEventListener('click', exitBatch);
-    document.getElementById('confirmBatchBtn').addEventListener('click', () => {
-      if (selectedIndices.size === 0) { showToast('还没有选择星星'); return; }
-      const arr = Array.from(selectedIndices).sort((a, b) => b - a);
-      arr.forEach(i => starsData.splice(i, 1));
-      // 清除3D星星并重建
-      while (generatedStarsGroup.children.length > 0) generatedStarsGroup.remove(generatedStarsGroup.children[0]);
-      restore3DStars();
-      saveStars(); updateCounter();
-      showToast(`已删除 ${arr.length} 颗星星`);
-      exitBatch(); renderGalaxy();
-      if (currentViewingIndex !== -1 && arr.includes(currentViewingIndex)) closeStarDetail();
-    });
-
-    // ========== 星星详情 ==========
-    function openStarDetail(index) {
-      if (index < 0 || index >= starsData.length) return;
-      currentViewingIndex = index;
-      const star = starsData[index];
-      document.getElementById('detailStarIcon').innerHTML = star.svg;
-      const svgEl = document.getElementById('detailStarIcon').querySelector('svg');
-      if (svgEl) { svgEl.setAttribute('width', '64'); svgEl.setAttribute('height', '64'); }
-      document.getElementById('detailText').textContent = star.text || '(当时没有记录文字)';
-      const date = new Date(star.time);
-      document.getElementById('detailTime').textContent =
-        `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-      document.getElementById('detailModal').classList.add('open');
-    }
-    function closeStarDetail() { document.getElementById('detailModal').classList.remove('open'); currentViewingIndex = -1; }
-    document.getElementById('closeDetailBtn').addEventListener('click', closeStarDetail);
-    document.getElementById('deleteStarBtn').addEventListener('click', () => {
-      if (currentViewingIndex >= 0 && currentViewingIndex < starsData.length) {
-        starsData.splice(currentViewingIndex, 1);
-        while (generatedStarsGroup.children.length > 0) generatedStarsGroup.remove(generatedStarsGroup.children[0]);
-        restore3DStars();
-        saveStars(); updateCounter();
-        showToast('这颗星星的记忆已消散');
-        closeStarDetail(); renderGalaxy();
-      }
-    });
-    document.getElementById('detailModal').addEventListener('click', e => { if (e.target === document.getElementById('detailModal')) closeStarDetail(); });
-
-    // ========== 清空星空 + 烟花 ==========
-    let clearPending = false, clearTimer = null, fireworksRunning = false;
-    const fCtx = fwCanvas.getContext('2d');
-
-    function resizeFW() { fwCanvas.width = window.innerWidth; fwCanvas.height = window.innerHeight; }
-    resizeFW();
-
-    class FP {
-      constructor(x, y, c, vx, vy, sz, d, g) { this.x = x; this.y = y; this.c = c; this.vx = vx; this.vy = vy; this.sz = Math.max(0.5, sz); this.a = 1; this.d = d; this.g = g; }
-      update() { this.vx *= 0.98; this.vy *= 0.98; this.vy += this.g; this.x += this.vx; this.y += this.vy; this.a -= this.d; }
-      draw(ctx) { ctx.save(); ctx.globalAlpha = Math.max(0, this.a); ctx.fillStyle = this.c; ctx.beginPath(); ctx.arc(this.x, this.y, Math.max(0.3, this.sz), 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
-    }
-    class FR {
-      constructor(sx, sy, tx, ty, c) { this.x = sx; this.y = sy; this.tx = tx; this.ty = ty; this.c = c; this.sp = 4 + Math.random() * 2; this.ang = Math.atan2(ty - sy, tx - sx); this.vx = Math.cos(this.ang) * this.sp; this.vy = Math.sin(this.ang) * this.sp; this.trail = []; this.alive = true; this.dt = Math.sqrt((tx - sx) ** 2 + (ty - sy) ** 2); this.dtr = 0; }
-      update() { this.trail.push({ x: this.x, y: this.y, a: 0.6 }); if (this.trail.length > 8) this.trail.shift(); this.trail.forEach(t => t.a -= 0.08); this.x += this.vx; this.y += this.vy; this.dtr += this.sp; if (this.dtr >= this.dt) this.alive = false; }
-      draw(ctx) { this.trail.forEach(t => { if (t.a <= 0) return; ctx.save(); ctx.globalAlpha = Math.max(0, t.a); ctx.fillStyle = this.c; ctx.beginPath(); ctx.arc(t.x, t.y, 1.5, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }); ctx.save(); ctx.fillStyle = '#fff'; ctx.shadowColor = this.c; ctx.shadowBlur = 6; ctx.beginPath(); ctx.arc(this.x, this.y, 2, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
-    }
-
-    let rockets = [], fParts = [];
-    function launchFireworks() {
-      if (fireworksRunning) return; fireworksRunning = true;
-      const rc = 5 + Math.floor(Math.random() * 4);
-      const fc = ['#a0b0ff', '#c0a0f0', '#f0b0d0', '#ffd966', '#88ddff', '#f08888', '#88f0b0'];
-      let la = 0;
-      function lo() {
-        if (la >= rc) return;
-        rockets.push(new FR(fwCanvas.width * (0.2 + Math.random() * 0.6), fwCanvas.height, fwCanvas.width * (0.15 + Math.random() * 0.7), fwCanvas.height * (0.1 + Math.random() * 0.35), fc[Math.floor(Math.random() * fc.length)]));
-        la++; setTimeout(lo, 200 + Math.random() * 400);
-      }
-      lo();
-      function af() {
-        fCtx.clearRect(0, 0, fwCanvas.width, fwCanvas.height);
-        fCtx.globalCompositeOperation = 'lighter';
-        for (let i = rockets.length - 1; i >= 0; i--) {
-          rockets[i].update(); rockets[i].draw(fCtx);
-          if (!rockets[i].alive) {
-            const r = rockets[i]; const pc = 40 + Math.floor(Math.random() * 30);
-            for (let j = 0; j < pc; j++) { const ang = Math.random() * Math.PI * 2; const sp = 1 + Math.random() * 4; fParts.push(new FP(r.x, r.y, r.c, Math.cos(ang) * sp, Math.sin(ang) * sp, 1 + Math.random() * 1.5, 0.008 + Math.random() * 0.012, 0.04)); }
-            if (soundOn) { try { const ac = new (window.AudioContext || window.webkitAudioContext)(); const o = ac.createOscillator(); const g = ac.createGain(); o.type = 'sine'; o.frequency.value = 60 + Math.random() * 40; g.gain.setValueAtTime(0.3, ac.currentTime); g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.3); o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + 0.3); } catch(e) {} }
-            rockets.splice(i, 1);
-          }
-        }
-        for (let i = fParts.length - 1; i >= 0; i--) { fParts[i].update(); fParts[i].draw(fCtx); if (fParts[i].a <= 0) fParts.splice(i, 1); }
-        fCtx.globalCompositeOperation = 'source-over';
-        if (rockets.length > 0 || fParts.length > 0) requestAnimationFrame(af);
-        else { fCtx.clearRect(0, 0, fwCanvas.width, fwCanvas.height); fireworksRunning = false; }
-      }
-      requestAnimationFrame(af);
-    }
-
-    document.getElementById('clearSkyBtn').addEventListener('click', () => {
-      if (starsData.length === 0) { showToast('星空已经是空的了'); return; }
-      if (clearPending) {
-        clearTimeout(clearTimer); clearPending = false;
-        starsData = []; saveStars(); updateCounter();
-        // 3D星星渐隐
-        generatedStarsGroup.children.forEach(s => { s.userData.fading = true; });
-        setTimeout(() => {
-          while (generatedStarsGroup.children.length > 0) generatedStarsGroup.remove(generatedStarsGroup.children[0]);
-          launchFireworks();
-          showToast('星空已清空，烟花为你绽放🎆');
-        }, 600);
-      } else {
-        clearPending = true; showToast('再按一次清空星空+放烟花🎆');
-        clearTimer = setTimeout(() => { clearPending = false; }, 2000);
-      }
-    });
-
-    // ========== 动画循环 ==========
-    function animate() {
-      requestAnimationFrame(animate);
-      const time = Date.now() * 0.001;
-
-      // 加速衰减
-      if (starSpeedBoost > 0) starSpeedBoost *= 0.95;
-      if (starSpeedBoost < 0.1) starSpeedBoost = 0;
-      const extraRot = starSpeedBoost * 0.003;
-
-      coreGroup.children.forEach((child, index) => {
-        if (child.isMesh && child.geometry.type === 'TorusGeometry') {
-          child.rotation.z += 0.0008 * (index + 1) + extraRot;
-          child.rotation.x += 0.0006 * (index + 1);
-        }
-      });
-
-      outerRings.forEach(ring => {
-        ring.rotation.z += ring.userData.speed + extraRot * 0.5;
-        ring.material.opacity = ring.userData.baseOpacity + Math.sin(Date.now() * 0.001 + ring.position.x) * 0.03;
-      });
-      outerHaloGroup.rotation.x = Math.sin(Date.now() * 0.00015) * 0.03;
-      outerHaloGroup.rotation.y += 0.0001 + extraRot * 0.2;
-
-      starsField.rotation.y += 0.00006 + extraRot * 0.5;
-
-      generatedStarsGroup.children.forEach(sprite => {
-        const ud = sprite.userData;
-        if (ud.fading) {
-          sprite.material.opacity -= 0.03;
-          sprite.scale.multiplyScalar(0.97);
-          return;
-        }
-        const breathe = 0.5 + Math.abs(Math.sin(time * ud.breatheSpeed + ud.breathePhase)) * 0.5;
-        sprite.material.opacity = breathe;
-        const s = ud.baseScale * (0.9 + breathe * 0.2);
-        sprite.scale.setScalar(s);
-        sprite.position.y = ud.baseY + Math.sin(time * ud.floatSpeed + ud.floatPhase) * ud.floatAmp;
-      });
-
-      // 黑洞吸入时脉冲
-      if (starSpeedBoost > 1) {
-        const pulse = 1 + Math.sin(time * 8) * 0.05 * starSpeedBoost;
-        coreGroup.scale.setScalar(pulse);
-      } else {
-        coreGroup.scale.setScalar(1);
-      }
-
-      renderer.render(scene, camera);
-    }
-    animate();
-
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      resizeFW();
-    });
-
-    // ========== 启动 ==========
-    loadStars();
-    updateCounter();
-    restore3DStars();
+    return pts.join(' ');
   }
-  </script>
+
+  let inner = '';
+  if (shapeType === 0) inner = `<polygon points="${starPointsStr(4,size*0.9,size*0.2)}" fill="${fill}" style="filter:drop-shadow(0 0 4px ${fill})"/>`;
+  else if (shapeType === 1) inner = `<polygon points="${starPointsStr(5,size*0.85,size*0.35)}" fill="${fill}" style="filter:drop-shadow(0 0 4px ${fill})"/>`;
+  else if (shapeType === 2) inner = `<polygon points="${starPointsStr(6,size*0.8,size*0.3)}" fill="${fill}" style="filter:drop-shadow(0 0 4px ${fill})"/>`;
+  else if (shapeType === 3) inner = `<circle cx="24" cy="24" r="14" fill="${fill}" style="filter:drop-shadow(0 0 4px ${fill})"/><circle cx="24" cy="24" r="6" fill="white" opacity="0.5"/>`;
+  else if (shapeType === 4) {
+    inner = `<g transform="translate(24,25) scale(0.5)"><path d="M0,-4 C-8,-24 -34,-16 -34,6 C-34,20 -16,30 0,36 C16,30 34,20 34,6 C34,-16 8,-24 0,-4Z" fill="${fill}" style="filter:drop-shadow(0 0 4px ${fill})"/></g>`;
+  } else {
+    inner = `<polygon points="24,4 30,24 24,44 18,24" fill="${fill}" style="filter:drop-shadow(0 0 4px ${fill})"/>`;
+  }
+
+  return `<svg width="48" height="48" viewBox="0 0 48 48">${inner}</svg>`;
+}
+
+// ===== 用户3D星星 =====
+const generatedStarsGroup = new THREE.Group();
+scene.add(generatedStarsGroup);
+
+function createSprite3D(hue, sat, light, shape, withAnimation) {
+  const tex = makeStarTexture(hue, sat, light, shape);
+  const material = new THREE.SpriteMaterial({map:tex, blending:THREE.AdditiveBlending, depthWrite:false, transparent:true});
+  const sprite = new THREE.Sprite(material);
+  const targetPos = getVisibleStarPos();
+  const sz = 0.4 + Math.random() * 0.35;
+
+  const base = {
+    baseY: targetPos.y, baseScale: sz,
+    breathePhase: Math.random()*Math.PI*2, breatheSpeed: 0.4+Math.random()*0.6,
+    floatAmp: 0.04+Math.random()*0.08, floatPhase: Math.random()*Math.PI*2,
+    floatSpeed: 0.3+Math.random()*0.4, dying: false
+  };
+
+  if (withAnimation) {
+    sprite.position.set(0,0,0); sprite.scale.set(0.01,0.01,1);
+    sprite.userData = {...base, targetPos:targetPos.clone(), spawning:true, spawnProgress:0};
+  } else {
+    sprite.position.copy(targetPos); sprite.scale.set(sz,sz,1);
+    sprite.userData = {...base, spawning:false, spawnProgress:1};
+  }
+  return sprite;
+}
+
+// ===== 2D粒子（尖锐角版） =====
+const fwCanvas = document.getElementById('fireworkCanvas');
+const fwCtx = fwCanvas.getContext('2d');
+let fwParticles = [], fwAnimId = null;
+function resizeFW() { fwCanvas.width = window.innerWidth; fwCanvas.height = window.innerHeight; }
+resizeFW();
+
+const burstShapes = ['star4','star5','heart','diamond','circle'];
+
+function drawParticleShape(ctx, x, y, size, shape, color, alpha) {
+  ctx.globalAlpha = alpha; ctx.fillStyle = color;
+  if (shape === 'star4') {
+    ctx.beginPath();
+    for (let i = 0; i < 4; i++) {
+      const aO = (i*90-90)*Math.PI/180, aI = ((i*90)+45-90)*Math.PI/180;
+      ctx.lineTo(x+Math.cos(aO)*size, y+Math.sin(aO)*size);
+      ctx.lineTo(x+Math.cos(aI)*size*0.35, y+Math.sin(aI)*size*0.35);
+    }
+    ctx.closePath(); ctx.fill();
+  } else if (shape === 'star5') {
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const aO = (i*72-90)*Math.PI/180, aI = ((i*72)+36-90)*Math.PI/180;
+      ctx.lineTo(x+Math.cos(aO)*size, y+Math.sin(aO)*size);
+      ctx.lineTo(x+Math.cos(aI)*size*0.4, y+Math.sin(aI)*size*0.4);
+    }
+    ctx.closePath(); ctx.fill();
+  } else if (shape === 'heart') {
+    // 桃心保留圆润
+    ctx.save(); ctx.translate(x, y); ctx.scale(size/14, size/14);
+    ctx.beginPath(); ctx.moveTo(0,-4);
+    ctx.bezierCurveTo(-8,-24,-34,-16,-34,6);
+    ctx.bezierCurveTo(-34,20,-16,30,0,36);
+    ctx.bezierCurveTo(16,30,34,20,34,6);
+    ctx.bezierCurveTo(34,-16,8,-24,0,-4);
+    ctx.fill(); ctx.restore();
+  } else if (shape === 'diamond') {
+    ctx.beginPath(); ctx.moveTo(x,y-size); ctx.lineTo(x+size*0.5,y); ctx.lineTo(x,y+size); ctx.lineTo(x-size*0.5,y);
+    ctx.closePath(); ctx.fill();
+  } else {
+    ctx.beginPath(); ctx.arc(x, y, size, 0, Math.PI*2); ctx.fill();
+  }
+}
+
+function launchBirthBurst(color) {
+  const cx = fwCanvas.width/2, cy = fwCanvas.height/2 - 20;
+  for (let j = 0; j < 60; j++) {
+    const angle = Math.random()*Math.PI*2;
+    const speed = 0.6 + Math.random()*1.8;
+    fwParticles.push({
+      x:cx, y:cy, vx:Math.cos(angle)*speed, vy:Math.sin(angle)*speed,
+      alpha:1, color, size:3+Math.random()*6, shape:burstShapes[Math.floor(Math.random()*burstShapes.length)],
+      delay:0, born:true, elapsed:0,
+      decay:0.002, gravity:0.006,
+      rotSpeed:(Math.random()-0.5)*0.04
+    });
+  }
+  if (!fwAnimId) animateFW();
+}
+
+function launchFireworks() {
+  if (fwAnimId) { cancelAnimationFrame(fwAnimId); fwAnimId = null; }
+  fwParticles = [];
+  const colors = ['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#ff6eb4','#c77dff','#45caff','#ffad45'];
+  const w = fwCanvas.width, h = fwCanvas.height;
+  for (let i = 0; i < 8; i++) {
+    const x = Math.random()*w*0.5+w*0.25, y = Math.random()*h*0.3+h*0.1;
+    const color = colors[i % colors.length];
+    const delay = i * 600;
+    const count = 55 + Math.floor(Math.random()*25);
+    for (let j = 0; j < count; j++) {
+      const angle = Math.random()*Math.PI*2;
+      const speed = 0.5 + Math.random()*1.8;
+      fwParticles.push({
+        x, y, vx:Math.cos(angle)*speed, vy:Math.sin(angle)*speed,
+        alpha:1, color, size:3+Math.random()*5,
+        shape:burstShapes[Math.floor(Math.random()*burstShapes.length)],
+        delay, born:false, elapsed:0,
+        decay:0.0018, gravity:0.008,
+        rotSpeed:(Math.random()-0.5)*0.04
+      });
+    }
+  }
+  fwCtx.clearRect(0, 0, w, h);
+  animateFW();
+}
+
+function animateFW() {
+  fwCtx.clearRect(0, 0, fwCanvas.width, fwCanvas.height);
+  let alive = false;
+  fwParticles = fwParticles.filter(p => {
+    if (!p.born) { p.elapsed += 16; if (p.elapsed < p.delay) { alive = true; return true; } p.born = true; }
+    p.x += p.vx; p.y += p.vy; p.vy += (p.gravity||0.008); p.vx *= 0.998; p.alpha -= (p.decay||0.002);
+    if (p.alpha <= 0) return false;
+    drawParticleShape(fwCtx, p.x, p.y, p.size, p.shape, p.color, p.alpha);
+    alive = true; return true;
+  });
+  fwCtx.globalAlpha = 1;
+  if (alive) { fwAnimId = requestAnimationFrame(animateFW); }
+  else { fwAnimId = null; fwCtx.clearRect(0, 0, fwCanvas.width, fwCanvas.height); }
+}
+
+// ===== 交互逻辑 =====
+function addGeneratedStar(text) {
+  const id = ++starIdCounter;
+  const {hue, sat, light} = pickColor();
+  const shape = Math.floor(Math.random() * 6);
+  const sprite = createSprite3D(hue, sat, light, shape, true);
+  generatedStarsGroup.add(sprite); spriteById.set(id, sprite);
+  triggerFlash();
+  launchBirthBurst(`hsl(${hue},${sat}%,${Math.min(90,light+15)}%)`);
+  const svgStr = makeStarSVG(hue, sat, light, shape);
+  starsData.push({id, svg:svgStr, text:text.slice(0,200), time:Date.now(), hue, sat, light, shape});
+  saveStars(); updateCounter(); playChime();
+}
+
+function restoreStars3D() {
+  starsData.forEach(star => {
+    if (!star.id) star.id = ++starIdCounter;
+    if (spriteById.has(star.id)) return;
+    const hue = star.hue??Math.floor(Math.random()*360), sat = star.sat??65, light = star.light??60;
+    const shape = (star.shape !== undefined) ? star.shape : Math.floor(Math.random()*6);
+    if (!star.svg || star.shape === undefined) star.svg = makeStarSVG(hue, sat, light, shape);
+    const sprite = createSprite3D(hue, sat, light, shape, false);
+    generatedStarsGroup.add(sprite); spriteById.set(star.id, sprite);
+  });
+  saveStars();
+}
+
+document.getElementById('throwBtn').addEventListener('click', () => {
+  const text = document.getElementById('textInput').value.trim();
+  if (!text) { showToast('写点什么再丢进去吧'); return; }
+  document.getElementById('textInput').value = '';
+  document.getElementById('textInput').style.height = 'auto';
+  document.getElementById('textInput').blur();
+  window.scrollTo(0, 0);
+  addGeneratedStar(text);
+  showToast('✨ 星星已生成');
+});
+document.getElementById('textInput').addEventListener('input', function() {
+  this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+});
+
+let batchMode = false, selectedIds = new Set();
+function renderGalaxy() {
+  const content = document.getElementById('galaxyContent');
+  content.innerHTML = '';
+  if (starsData.length === 0) {
+    content.innerHTML = '<div style="color:#556;text-align:center;padding:40px;width:100%">还没有星星，去吐槽吧</div>';
+    return;
+  }
+  starsData.forEach(star => {
+    const div = document.createElement('div');
+    div.className = 'galaxy-star' + (batchMode && selectedIds.has(star.id) ? ' selected' : '');
+    div.innerHTML = star.svg;
+    div.addEventListener('click', () => {
+      if (batchMode) {
+        if (selectedIds.has(star.id)) { selectedIds.delete(star.id); div.classList.remove('selected'); }
+        else { selectedIds.add(star.id); div.classList.add('selected'); }
+      } else { showDetail(star); }
+    });
+    content.appendChild(div);
+  });
+}
+
+function showDetail(star) {
+  document.getElementById('detailSvg').innerHTML = star.svg.replace('width="48" height="48"', 'width="80" height="80"');
+  document.getElementById('detailText').textContent = star.text;
+  const d = new Date(star.time);
+  document.getElementById('detailTime').textContent = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  document.getElementById('detailModal').classList.add('open');
+}
+document.getElementById('detailClose').addEventListener('click', () => document.getElementById('detailModal').classList.remove('open'));
+document.getElementById('detailModal').addEventListener('click', e => { if(e.target.id==='detailModal') document.getElementById('detailModal').classList.remove('open'); });
+
+function showGalaxy() { if(batchMode) exitBatch(); renderGalaxy(); document.getElementById('galaxyModal').classList.add('open'); }
+function hideGalaxy() { document.getElementById('galaxyModal').classList.remove('open'); if(batchMode) exitBatch(); }
+document.getElementById('starDashboard').addEventListener('click', showGalaxy);
+document.getElementById('closeGalaxy').addEventListener('click', hideGalaxy);
+document.getElementById('galaxyModal').addEventListener('click', e => { if(e.target.id==='galaxyModal') hideGalaxy(); });
+
+const batchBtn = document.getElementById('batchDeleteBtn');
+const batchActions = document.getElementById('batchActions');
+function enterBatch() { batchMode=true; selectedIds.clear(); batchBtn.style.display='none'; batchActions.classList.add('visible'); renderGalaxy(); }
+function exitBatch() { batchMode=false; selectedIds.clear(); batchBtn.style.display='inline-block'; batchActions.classList.remove('visible'); renderGalaxy(); }
+batchBtn.addEventListener('click', enterBatch);
+document.getElementById('cancelBatchBtn').addEventListener('click', exitBatch);
+document.getElementById('confirmBatchBtn').addEventListener('click', () => {
+  if (selectedIds.size === 0) { showToast('还没有选择星星'); return; }
+  selectedIds.forEach(id => { const s = spriteById.get(id); if(s){generatedStarsGroup.remove(s);spriteById.delete(id);} });
+  starsData = starsData.filter(s => !selectedIds.has(s.id));
+  saveStars(); updateCounter(); showToast(`已删除 ${selectedIds.size} 颗星星`); exitBatch(); renderGalaxy();
+});
+
+let clearing = false;
+document.getElementById('clearSkyBtn').addEventListener('click', () => {
+  if (starsData.length === 0) { showToast('夜空已经是空的了'); return; }
+  if (!confirm('清空所有星星？')) return;
+  generatedStarsGroup.children.forEach(s => { s.userData.dying = true; });
+  clearing = true; playSweep(); launchFireworks();
+  setTimeout(() => {
+    while (generatedStarsGroup.children.length > 0) generatedStarsGroup.remove(generatedStarsGroup.children[0]);
+    spriteById.clear(); starsData = []; saveStars(); updateCounter(); clearing = false;
+    showToast('星空已清空');
+  }, 4000);
+});
+
+function showToast(msg) {
+  const t = document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+function easeOutQuart(t) { return 1 - Math.pow(1 - t, 4); }
+
+// ===== 动画循环 =====
+function animate() {
+  requestAnimationFrame(animate);
+  coreGroup.children.forEach((child, i) => {
+    if (child.isMesh && child.geometry.type === 'TorusGeometry') {
+      child.rotation.z += 0.0008*(i+1); child.rotation.x += 0.0006*(i+1);
+    }
+  });
+  outerRings.forEach(ring => {
+    ring.rotation.z += ring.userData.speed;
+    ring.material.opacity = ring.userData.baseOpacity + Math.sin(Date.now()*0.001+ring.position.x)*0.03;
+  });
+  outerHaloGroup.rotation.x = Math.sin(Date.now()*0.00015)*0.03;
+  outerHaloGroup.rotation.y += 0.0001;
+
+  const time = Date.now() * 0.001;
+
+  // 背景星呼吸
+  bgGroups.forEach((points, i) => {
+    const freq = 0.3 + i * 0.08;
+    const phase = i * 1.2;
+    const breathe = 0.5 + Math.sin(time * freq + phase) * 0.5;
+    points.material.opacity = 0.4 + breathe * 0.5;
+    points.rotation.y += 0.00004 * (1 + i * 0.3);
+  });
+
+  if (flashActive) {
+    flashTimer += 0.04;
+    if (flashTimer < 1) {
+      const s = easeOutCubic(flashTimer)*2;
+      flashMesh.scale.set(s,s,s); flashMat.opacity = Math.max(0, 1-flashTimer*1.2);
+    } else { flashMat.opacity = 0; flashActive = false; }
+  }
+
+  generatedStarsGroup.children.forEach(sprite => {
+    const ud = sprite.userData;
+    if (ud.dying) {
+      sprite.position.x*=0.88; sprite.position.y*=0.88; sprite.position.z*=0.88;
+      sprite.scale.multiplyScalar(0.94); sprite.material.opacity*=0.92; return;
+    }
+    if (ud.spawning) {
+      ud.spawnProgress += 0.025;
+      const t = easeOutQuart(Math.min(ud.spawnProgress, 1));
+      sprite.position.lerpVectors(new THREE.Vector3(0,0,0), ud.targetPos, t);
+      const s = ud.baseScale*t; sprite.scale.set(s,s,1); sprite.material.opacity = Math.min(t*1.5, 1);
+      if (ud.spawnProgress >= 1) {
+        ud.spawning = false; sprite.position.copy(ud.targetPos);
+        sprite.scale.set(ud.baseScale,ud.baseScale,1); sprite.material.opacity = 1;
+      }
+      return;
+    }
+    const breathe = 0.5+Math.abs(Math.sin(time*ud.breatheSpeed+ud.breathePhase))*0.5;
+    sprite.material.opacity = 0.6+breathe*0.4;
+    const s = ud.baseScale*(0.9+breathe*0.2);
+    sprite.scale.setScalar(s);
+    sprite.position.y = ud.baseY + Math.sin(time*ud.floatSpeed+ud.floatPhase)*ud.floatAmp;
+  });
+
+  renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight); resizeFW();
+});
+
+loadStars(); updateCounter(); restoreStars3D();
+</script>
 </body>
 </html>
